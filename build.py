@@ -11,11 +11,12 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker
 
 ROOT = Path(__file__).parent
-ARMS = ["brave", "brave_llm", "linkup", "linkup_std"]
+ARMS = ["brave", "brave_llm", "linkup", "linkup_std", "linkup_exp"]
 PAIRS = [(x, y) for i, x in enumerate(ARMS) for y in ARMS[i + 1:]]
-LABEL = {"brave": "Brave Web Search", "brave_llm": "Brave LLM Context", "linkup": "Linkup fast", "linkup_std": "Linkup standard"}
-# Brave in oranges, Linkup in greens (Linkup green as in the Linkup vs Claude repo).
-COLOR = {"brave": "#eb6834", "brave_llm": "#9c3d12", "linkup": "#1baf7a", "linkup_std": "#0b5e40"}
+LABEL = {"brave": "Brave Web Search", "brave_llm": "Brave LLM Context", "linkup": "Linkup fast", "linkup_std": "Linkup standard",
+         "linkup_exp": "Linkup fast (experimental)"}
+# Brave in oranges, Linkup in greens (Linkup green as in the Linkup vs Claude repo), experimental Linkup in blue.
+COLOR = {"brave": "#eb6834", "brave_llm": "#9c3d12", "linkup": "#1baf7a", "linkup_std": "#0b5e40", "linkup_exp": "#3a86c8"}
 TIE = "#b9b7b0"
 SURFACE, INK, INK2, GRID = "#fcfcfb", "#0b0b0b", "#52514e", "#e4e3df"
 TOPIC = {"law_tax": "Law, tax & regulation", "companies": "Companies & markets", "tech": "Tech & IT",
@@ -29,8 +30,8 @@ PRICE = {
     "sonnet_input": 2.00, "sonnet_output": 10.00, "sonnet_cache_read": 0.20, "sonnet_cache_write": 2.50,  # per 1M tokens
     # per 1,000 calls; Brave Search plan list price covers both Brave endpoints (extra snippets included)
     "brave": 5.00, "brave_llm": 5.00,
-    # Linkup fast and standard searchResults: price offered to Langdock (20% off the $5.00 list price)
-    "linkup": 4.00, "linkup_std": 4.00,
+    # Linkup searchResults (all three Linkup arms): price offered to Langdock (20% off the $5.00 list price)
+    "linkup": 4.00, "linkup_std": 4.00, "linkup_exp": 4.00,
 }
 VOLS = [1_000_000, 5_000_000, 10_000_000]  # Langdock's expected monthly range
 
@@ -187,7 +188,7 @@ def arm_bars(ax, vals, fmt, xlim, ttl, xl, labels=True):
 
 
 # 1. Overview: one panel per headline metric.
-fig, axes = plt.subplots(1, 4, figsize=(18, 3.6), gridspec_kw={"wspace": 0.12})
+fig, axes = plt.subplots(1, 4, figsize=(19, 4.2), gridspec_kw={"wspace": 0.12})
 arm_bars(axes[0], {a: M[a]["win_rate"] * 100 for a in ARMS}, lambda v: f"{v:.0f}%", 80, "Blind A/B win rate", "Ties count half (higher is better)")
 arm_bars(axes[1], {a: M[a]["score"] for a in ARMS}, lambda v: f"{v:.1f}", 115, "Fact-check score", "0–100, average (higher is better)", False)
 arm_bars(axes[2], {a: M[a]["total_cost"] * 100 for a in ARMS}, lambda v: f"{v:.2f}¢", max(M[a]["total_cost"] for a in ARMS) * 100 * 1.35,
@@ -198,7 +199,7 @@ fig.savefig(CHARTS / "overview.png", bbox_inches="tight")
 plt.close(fig)
 
 # 2. Blind A/B: every pair, stacked (left arm better | tie | right arm better).
-fig, ax = plt.subplots(figsize=(11, 4.6))
+fig, ax = plt.subplots(figsize=(12, 7))
 y = list(range(len(PAIRS)))[::-1]
 for yy, (x, yarm) in zip(y, PAIRS):
     c = PAIR[(x, yarm)]
@@ -219,7 +220,7 @@ fig.savefig(CHARTS / "ab.png", bbox_inches="tight")
 plt.close(fig)
 
 # 3. Fact-check: verdicts per arm, and score by topic.
-fig, axes = plt.subplots(1, 2, figsize=(17, 5), gridspec_kw={"wspace": 0.75, "width_ratios": [1, 1.2]})
+fig, axes = plt.subplots(1, 2, figsize=(18, 5.6), gridspec_kw={"wspace": 0.85, "width_ratios": [1, 1.2]})
 ax = axes[0]
 VCOLOR = {"correct": "#1f7a5a", "partial": "#a7c4b5", "incorrect": "#c2442b", "not_found": TIE}
 y = list(range(len(ARMS)))[::-1]
@@ -241,21 +242,21 @@ ax.legend([plt.Rectangle((0, 0), 1, 1, color=VCOLOR[v]) for v in VERDICTS], [VLA
           loc="lower center", bbox_to_anchor=(0.5, -0.3), ncol=4, frameon=False)
 ax = axes[1]
 topics = [t for t in TOPIC if n_topic[t]]
-h = 0.2
+h = 0.8 / len(ARMS)
 for k, a in enumerate(ARMS):
-    ys = [len(topics) - 1 - j + (1.5 - k) * h for j in range(len(topics))]
+    ys = [len(topics) - 1 - j + ((len(ARMS) - 1) / 2 - k) * h for j in range(len(topics))]
     ax.barh(ys, [M[a]["by_topic"][t] for t in topics], height=h, color=COLOR[a], label=LABEL[a], edgecolor=SURFACE, linewidth=1)
 ax.set_yticks(range(len(topics))[::-1], [f"{TOPIC[t]} (n={n_topic[t]})" for t in topics])
 ax.set_xlim(50, 100)
 ax.set_xlabel("Fact-check score (0–100, average) · axis starts at 50")
 title(ax, "Fact-check score by topic")
 style(ax)
-ax.legend(loc="lower center", bbox_to_anchor=(0.4, -0.3), ncol=4, frameon=False)
+ax.legend(loc="lower center", bbox_to_anchor=(0.4, -0.34), ncol=3, frameon=False)
 fig.savefig(CHARTS / "factcheck.png", bbox_inches="tight")
 plt.close(fig)
 
 # 4. Cost per query (search fees vs model tokens), and at Langdock's volumes.
-fig, axes = plt.subplots(1, 2, figsize=(16, 4.2), gridspec_kw={"wspace": 0.35, "width_ratios": [1.2, 1]})
+fig, axes = plt.subplots(1, 2, figsize=(17, 4.8), gridspec_kw={"wspace": 0.4, "width_ratios": [1.2, 1]})
 ax = axes[0]
 y = list(range(len(ARMS)))[::-1]
 for yy, a in zip(y, ARMS):
@@ -270,9 +271,9 @@ ax.set_xlabel("Per query (solid: search fees, light: model tokens)")
 title(ax, "Cost per query")
 style(ax)
 ax = axes[1]
-w = 0.2
+w = 0.8 / len(ARMS)
 for k, a in enumerate(ARMS):
-    xs = [i + (k - 1.5) * w for i in range(len(VOLS))]
+    xs = [i + (k - (len(ARMS) - 1) / 2) * w for i in range(len(VOLS))]
     ax.bar(xs, [M[a]["total_cost"] * v / 1000 for v in VOLS], width=w, color=COLOR[a], label=LABEL[a], edgecolor=SURFACE, linewidth=1)
 ax.set_xticks(range(len(VOLS)), [f"{v // 1_000_000}M" for v in VOLS])
 ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"${v:,.0f}k"))
@@ -319,15 +320,17 @@ def row(name, f):
 HEAD = ["Metric"] + [LABEL[a] for a in ARMS]
 best = lambda key, hi=True: (max if hi else min)(ARMS, key=lambda a: M[a][key])
 
+LINKUP_PRICE = "$4.00 (offered to Langdock; list $5.00)"
 SETUP = table(["", *[LABEL[a] for a in ARMS]], [
-    ["Model", *["`claude-sonnet-5-5`"] * 4],
-    ["Endpoint", "`/res/v1/web/search`", "`/res/v1/llm/context`", "`/v1/search`, `depth=fast`", "`/v1/search`, `depth=standard`"],
+    ["Model", *["`claude-sonnet-5-5`"] * len(ARMS)],
+    ["Endpoint", "`/res/v1/web/search`", "`/res/v1/llm/context`", "`/v1/search`, `depth=fast`", "`/v1/search`, `depth=standard`",
+     "`/v1/search`, `depth=fast`, experimental API key"],
     ["Settings", "`count=10`, `extra_snippets=true`", "`count=10`; default 8,192-token budget and relevance threshold",
-     "`searchResults`, `maxResults=10`", "`searchResults`, `maxResults=10`"],
+     *["`searchResults`, `maxResults=10`"] * 3],
     ["What Claude sees per result", "title, URL, date, description, up to 5 extra snippets", "title, URL, date, extracted page chunks",
-     "title, URL, content", "title, URL, content"],
-    ["Search price (per 1,000)", "$5.00 (list)", "$5.00 (list)", "$4.00 (offered to Langdock; list $5.00)", "$4.00 (offered to Langdock; list $5.00)"],
-    ["Search cap", *["10 per query"] * 4],
+     *["title, URL, content"] * 3],
+    ["Search price (per 1,000)", "$5.00 (list)", "$5.00 (list)", *[LINKUP_PRICE] * 3],
+    ["Search cap", *["10 per query"] * len(ARMS)],
 ])
 OVERALL = table(HEAD, [
     row("Blind A/B win rate (ties count half)", lambda a: f"{M[a]['win_rate'] * 100:.0f}%"),
@@ -377,7 +380,7 @@ TOPICS = table(["Topic", "Queries"] + [f"{LABEL[a]}: A/B win rate / score" for a
 top_ab, top_fc, cheap, fast = best("win_rate"), best("score"), best("total_cost", False), best("latency_median", False)
 readme = f"""# Linkup vs Brave on Langdock's search queries
 
-Claude Sonnet 5.5 answered {N} of Langdock's search queries four times, each time with a different search tool: Brave's Web Search API, Brave's LLM Context API, Linkup `fast` and Linkup `standard`. Same model, same prompt, same 10-search cap. Two separate graders scored the answers: a blind A/B comparison of every pair of arms, and a fact-check in which a judge verifies each answer's claims with its own web search.
+Claude Sonnet 5.5 answered {N} of Langdock's search queries five times, each time with a different search tool: Brave's Web Search API, Brave's LLM Context API, Linkup `fast`, Linkup `standard`, and Linkup `fast` on an experimental API key. Same model, same prompt, same 10-search cap. Two separate graders scored the answers: a blind A/B comparison of every pair of arms, and a fact-check in which a judge verifies each answer's claims with its own web search.
 
 - **Blind A/B:** {LABEL[top_ab]} has the highest win rate ({M[top_ab]['win_rate'] * 100:.0f}%); see every pair below.
 - **Fact-check:** {LABEL[top_fc]} scores highest ({M[top_fc]['score']:.1f} out of 100, {M[top_fc]['correct']} answers fully correct).
