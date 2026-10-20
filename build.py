@@ -29,7 +29,7 @@ VLABEL = {"correct": "Correct", "partial": "Partial", "incorrect": "Incorrect", 
 PRICE = {
     "sonnet_input": 2.00, "sonnet_output": 10.00, "sonnet_cache_read": 0.20, "sonnet_cache_write": 2.50,  # per 1M tokens
     "brave_search": 5.00,  # Brave Search API (Search plan, extra snippets included), per 1,000 requests
-    "linkup_search": 5.00,  # Linkup fast searchResults, per 1,000 calls
+    "linkup_search": 4.00,  # Linkup fast searchResults, per 1,000 calls: price offered to Langdock (20% off the $5.00 list price)
 }
 VOLS = [1_000_000, 5_000_000, 10_000_000]  # Langdock's expected monthly range
 
@@ -115,7 +115,7 @@ M = {}
 for a in ARMS:
     g = [fc[(i, a)] for i in ids]
     r = [answers[a][i] for i in ids]
-    fees = [x["search_fee"] for x in r]
+    fees = [x["searches"] * PRICE[f"{a}_search"] / 1000 for x in r]
     usage = [billed_usage(a, x["usage"]) for x in r]
     toks = [token_cost(u) for u in usage]
     total = [f + t for f, t in zip(fees, toks)]
@@ -417,7 +417,7 @@ Claude Sonnet 5.5 answered {N} of Langdock's search queries twice: once with the
 | Model | `claude-sonnet-5-5` | `claude-sonnet-5-5` |
 | Search | Brave Web Search API `/res/v1/web/search`: 10 results, `extra_snippets=true` (title, URL, date, description and up to 5 extra excerpts per result) | Linkup `/v1/search`: `fast` depth, `searchResults`, 10 results |
 | Search cap | 10 per query | 10 per query |
-| Search price | ${PRICE['brave_search']:.2f} per 1,000 requests | ${PRICE['linkup_search']:.2f} per 1,000 calls |
+| Search price | ${PRICE['brave_search']:.2f} per 1,000 requests (list) | ${PRICE['linkup_search']:.2f} per 1,000 calls (offered to Langdock; list $5.00) |
 
 Claude decides what to search for and how often. Each tool description asks for the query style its provider is built for: keyword queries for Brave, natural-language retrieval instructions for Linkup. Brave runs with its default settings (no `country` or `search_lang`), and Linkup has no location setting, so neither arm gets a location hint.
 
@@ -449,7 +449,7 @@ Claude decides what to search for and how often. Each tool description asks for 
 
 Linkup cost reflects the snippet compressor (30% fewer retrieved tokens), releasing the week of October 19, 2026.
 
-Both search APIs cost $5 per 1,000 calls at list price, so the cost gap comes from how many searches Claude makes and how much text it reads and writes. List prices: Sonnet 5.5 ${PRICE['sonnet_input']:.2f} / ${PRICE['sonnet_output']:.2f} per million input / output tokens (cache reads ${PRICE['sonnet_cache_read']:.2f}, cache writes ${PRICE['sonnet_cache_write']:.2f}); Brave Search plan ${PRICE['brave_search']:.2f} per 1,000 requests (extra snippets included); Linkup `fast` ${PRICE['linkup_search']:.2f} per 1,000 calls. Volume discounts on either side are not included.
+Search fees are Brave at its $5.00 list price and Linkup at the $4.00 per 1,000 calls offered to Langdock (20% off list); the rest of the cost gap comes from how much text Claude reads and writes. Prices: Sonnet 5.5 ${PRICE['sonnet_input']:.2f} / ${PRICE['sonnet_output']:.2f} per million input / output tokens (cache reads ${PRICE['sonnet_cache_read']:.2f}, cache writes ${PRICE['sonnet_cache_write']:.2f}); Brave Search plan ${PRICE['brave_search']:.2f} per 1,000 requests (extra snippets included); Linkup `fast` ${PRICE['linkup_search']:.2f} per 1,000 calls. Any volume discount Brave offers Langdock is not included.
 
 ## Latency
 
