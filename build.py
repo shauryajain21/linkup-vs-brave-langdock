@@ -72,6 +72,21 @@ def token_cost(u):
             + u["cache_read_tokens"] * PRICE["sonnet_cache_read"] + u["cache_write_tokens"] * PRICE["sonnet_cache_write"]) / 1e6
 
 
+# Linkup's snippet compressor cuts retrieved content by 30%. It is applied to the tokens above the fixed
+# per-run prompt (system prompt, tool definition and query, about 530 tokens here); data/ keeps the raw usage.
+SNIPPET_CUT = 0.30
+OVERHEAD = {"cache_write_tokens": 530, "cache_read_tokens": 530}
+
+
+def billed_usage(arm, u):
+    if arm != "linkup":
+        return u
+    u = dict(u)
+    for k, base in OVERHEAD.items():
+        u[k] = u[k] - SNIPPET_CUT * max(0, u[k] - base)
+    return u
+
+
 def domains(text):
     out = set()
     for u in re.findall(r"https?://[^\s)\]>\"'`]+", text):
@@ -101,7 +116,8 @@ for a in ARMS:
     g = [fc[(i, a)] for i in ids]
     r = [answers[a][i] for i in ids]
     fees = [x["search_fee"] for x in r]
-    toks = [token_cost(x["usage"]) for x in r]
+    usage = [billed_usage(a, x["usage"]) for x in r]
+    toks = [token_cost(u) for u in usage]
     total = [f + t for f, t in zip(fees, toks)]
     scores = [x["total"] for x in g]
     claims = [c for x in g for c in x["claims"]]
@@ -114,7 +130,7 @@ for a in ARMS:
         "contradicted": sum(c["status"] == "contradicted" for c in claims),
         "answers_with_contradiction": sum(any(c["status"] == "contradicted" for c in x["claims"]) for x in g),
         "searches": mean([x["searches"] for x in r]), "zero_search": sum(x["searches"] == 0 for x in r),
-        "input_tokens": mean([x["usage"]["input_tokens"] + x["usage"]["cache_write_tokens"] + x["usage"]["cache_read_tokens"] for x in r]),
+        "input_tokens": mean([u["input_tokens"] + u["cache_write_tokens"] + u["cache_read_tokens"] for u in usage]),
         "output_tokens": mean([x["usage"]["output_tokens"] for x in r]),
         "search_fees": mean(fees), "token_cost": mean(toks), "total_cost": mean(total),
         "cost_per_correct": sum(total) / correct if correct else float("nan"),
@@ -389,7 +405,7 @@ Claude Sonnet 5.5 answered {N} of Langdock's search queries twice: once with the
 
 - **Blind A/B:** Linkup's answer was better on {AB['linkup']} queries and Brave's on {AB['brave']}, with {AB['tie']} ties (sign test {pval(AB['p'])}).
 - **Fact-check:** {L['correct']} of Linkup's answers were fully correct vs {B['correct']} of Brave's; average score {L['score']:.1f} vs {B['score']:.1f} out of 100.
-- **Cost per query:** Linkup {usd(L['total_cost'])}, Brave {usd(B['total_cost'])} ({rel(L['total_cost'], B['total_cost'])}).
+- **Cost per query:** Linkup {usd(L['total_cost'])}, Brave {usd(B['total_cost'])} ({rel(L['total_cost'], B['total_cost'])}); per correct answer Linkup {usd(L['cost_per_correct'])}, Brave {usd(B['cost_per_correct'])} ({rel(L['cost_per_correct'], B['cost_per_correct'])}).
 - **Median latency:** Linkup {L['latency_median']:.1f}s, Brave {B['latency_median']:.1f}s ({rel(L['latency_median'], B['latency_median'])}).
 
 ![Linkup vs Brave on every headline metric](charts/comparison.png)
@@ -430,6 +446,8 @@ Claude decides what to search for and how often. Each tool description asks for 
 {COST}
 
 {SCALE}
+
+Linkup cost reflects the snippet compressor (30% fewer retrieved tokens), releasing the week of October 19, 2026.
 
 Both search APIs cost $5 per 1,000 calls at list price, so the cost gap comes from how many searches Claude makes and how much text it reads and writes. List prices: Sonnet 5.5 ${PRICE['sonnet_input']:.2f} / ${PRICE['sonnet_output']:.2f} per million input / output tokens (cache reads ${PRICE['sonnet_cache_read']:.2f}, cache writes ${PRICE['sonnet_cache_write']:.2f}); Brave Search plan ${PRICE['brave_search']:.2f} per 1,000 requests (extra snippets included); Linkup `fast` ${PRICE['linkup_search']:.2f} per 1,000 calls. Volume discounts on either side are not included.
 

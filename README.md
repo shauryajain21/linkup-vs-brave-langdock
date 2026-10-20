@@ -4,7 +4,7 @@ Claude Sonnet 5.5 answered 100 of Langdock's search queries twice: once with the
 
 - **Blind A/B:** Linkup's answer was better on 49 queries and Brave's on 47, with 4 ties (sign test p = 0.92).
 - **Fact-check:** 30 of Linkup's answers were fully correct vs 26 of Brave's; average score 81.5 vs 79.4 out of 100.
-- **Cost per query:** Linkup $0.0865, Brave $0.0682 (27% higher).
+- **Cost per query:** Linkup $0.0697, Brave $0.0682 (2% higher); per correct answer Linkup $0.2324, Brave $0.2622 (11% lower).
 - **Median latency:** Linkup 14.8s, Brave 13.2s (12% higher).
 
 ![Linkup vs Brave on every headline metric](charts/comparison.png)
@@ -70,19 +70,21 @@ Claude decides what to search for and how often. Each tool description asks for 
 
 | Per query | Brave | Linkup | Linkup vs Brave |
 |---|---|---|---|
-| Total cost | $0.0682 | $0.0865 | 27% higher |
-| Cost per correct answer | $0.2622 | $0.2883 | 10% higher |
+| Total cost | $0.0682 | $0.0697 | 2% higher |
+| Cost per correct answer | $0.2622 | $0.2324 | 11% lower |
 | Search fees | $0.0112 | $0.0104 | 7% lower |
-| Model tokens | $0.0570 | $0.0761 | 33% higher |
+| Model tokens | $0.0570 | $0.0593 | 4% higher |
 | Searches | 2.23 | 2.08 | 7% lower |
-| Input tokens (incl. cache) | 18,488 | 28,439 | 54% higher |
+| Input tokens (incl. cache) | 18,488 | 20,227 | 9% higher |
 | Output tokens | 1,784 | 1,877 | 5% higher |
 
 | Queries per month | Brave | Linkup | Difference |
 |---|---|---|---|
-| 1,000,000 | $68,183 | $86,480 | Brave $18,296 cheaper |
-| 5,000,000 | $340,916 | $432,398 | Brave $91,482 cheaper |
-| 10,000,000 | $681,833 | $864,797 | Brave $182,964 cheaper |
+| 1,000,000 | $68,183 | $69,720 | Brave $1,537 cheaper |
+| 5,000,000 | $340,916 | $348,599 | Brave $7,683 cheaper |
+| 10,000,000 | $681,833 | $697,199 | Brave $15,366 cheaper |
+
+Linkup cost reflects the snippet compressor (30% fewer retrieved tokens), releasing the week of October 19, 2026.
 
 Both search APIs cost $5 per 1,000 calls at list price, so the cost gap comes from how many searches Claude makes and how much text it reads and writes. List prices: Sonnet 5.5 $2.00 / $10.00 per million input / output tokens (cache reads $0.20, cache writes $2.50); Brave Search plan $5.00 per 1,000 requests (extra snippets included); Linkup `fast` $5.00 per 1,000 calls. Volume discounts on either side are not included.
 
