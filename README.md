@@ -4,7 +4,7 @@ Claude Sonnet 5.5 answered 100 of Langdock's search queries five times, each tim
 
 - **Blind A/B:** Brave LLM Context has the highest win rate (77%); see every pair below.
 - **Fact-check:** Brave LLM Context scores highest (86.8 out of 100, 39 answers fully correct).
-- **Cost per query:** lowest with Linkup fast (experimental) ($0.0662).
+- **Cost per query:** lowest with Brave Web Search ($0.0682).
 - **Median latency:** lowest with Brave Web Search (13.2s).
 
 ![Win rate, fact-check score, cost and latency for each arm](charts/overview.png)
@@ -14,8 +14,8 @@ Claude Sonnet 5.5 answered 100 of Langdock's search queries five times, each tim
 | Blind A/B win rate (ties count half) | 36% | 77% | 43% | 42% | 52% |
 | Fact-check score (0–100) | 79.4 | 86.8 | 81.5 | 80.9 | 82.8 |
 | Fully correct (fact-check) | 26 | 39 | 30 | 33 | 30 |
-| Cost per query | $0.0682 | $0.0997 | $0.0676 | $0.0692 | $0.0662 |
-| Cost per correct answer | $0.2622 | $0.2557 | $0.2255 | $0.2098 | $0.2207 |
+| Cost per query | $0.0682 | $0.0997 | $0.0844 | $0.0866 | $0.0827 |
+| Cost per correct answer | $0.2622 | $0.2557 | $0.2813 | $0.2624 | $0.2756 |
 | Median latency | 13.2s | 16.0s | 14.8s | 18.1s | 15.8s |
 
 ## Setup
@@ -93,21 +93,19 @@ Score differences between arms, per query:
 
 | Per query | Brave Web Search | Brave LLM Context | Linkup fast | Linkup standard | Linkup fast (experimental) |
 |---|---|---|---|---|---|
-| Total cost | $0.0682 | $0.0997 | $0.0676 | $0.0692 | $0.0662 |
-| Cost per correct answer | $0.2622 | $0.2557 | $0.2255 | $0.2098 | $0.2207 |
+| Total cost | $0.0682 | $0.0997 | $0.0844 | $0.0866 | $0.0827 |
+| Cost per correct answer | $0.2622 | $0.2557 | $0.2813 | $0.2624 | $0.2756 |
 | Search fees | $0.0112 | $0.0098 | $0.0083 | $0.0086 | $0.0078 |
-| Model tokens | $0.0570 | $0.0900 | $0.0593 | $0.0606 | $0.0585 |
+| Model tokens | $0.0570 | $0.0900 | $0.0761 | $0.0780 | $0.0749 |
 | Searches | 2.23 | 1.95 | 2.08 | 2.16 | 1.94 |
-| Input tokens (incl. cache) | 18,488 | 29,762 | 20,227 | 22,475 | 18,646 |
+| Input tokens (incl. cache) | 18,488 | 29,762 | 28,439 | 31,650 | 26,181 |
 | Output tokens | 1,784 | 1,988 | 1,877 | 1,864 | 1,857 |
 
 | Queries per month | Brave Web Search | Brave LLM Context | Linkup fast | Linkup standard | Linkup fast (experimental) |
 |---|---|---|---|---|---|
-| 1,000,000 | $68,183 | $99,740 | $67,640 | $69,234 | $66,214 |
-| 5,000,000 | $340,916 | $498,698 | $338,199 | $346,171 | $331,070 |
-| 10,000,000 | $681,833 | $997,395 | $676,399 | $692,341 | $662,141 |
-
-Linkup cost reflects the snippet compressor (30% fewer retrieved tokens), releasing the week of October 19, 2026.
+| 1,000,000 | $68,183 | $99,740 | $84,400 | $86,597 | $82,689 |
+| 5,000,000 | $340,916 | $498,698 | $421,998 | $432,985 | $413,443 |
+| 10,000,000 | $681,833 | $997,395 | $843,997 | $865,970 | $826,886 |
 
 Search fees are Brave at its $5.00 list price (the Search plan covers both endpoints) and Linkup at the $4.00 per 1,000 calls offered to Langdock (20% off list); the rest of the cost comes from how much text Claude reads and writes. Prices: Sonnet 5.5 $2.00 / $10.00 per million input / output tokens (cache reads $0.20, cache writes $2.50). Any volume discount Brave offers Langdock is not included.
 

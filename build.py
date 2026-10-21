@@ -35,10 +35,6 @@ PRICE = {
 }
 VOLS = [1_000_000, 5_000_000, 10_000_000]  # Langdock's expected monthly range
 
-# Linkup's snippet compressor cuts retrieved content by 30%. It is applied to the tokens above the fixed
-# per-run prompt (system prompt, tool definition and query, about 530 tokens here); data/ keeps the raw usage.
-SNIPPET_CUT = 0.30
-OVERHEAD = {"cache_write_tokens": 530, "cache_read_tokens": 530}
 
 
 def rows(name):
@@ -72,15 +68,6 @@ def sign_p(a, b):
 def quantile(xs, p):
     s = sorted(xs)
     return s[min(len(s) - 1, int(p * len(s)))]
-
-
-def billed_usage(arm, u):
-    if not arm.startswith("linkup"):
-        return u
-    u = dict(u)
-    for k, base in OVERHEAD.items():
-        u[k] = u[k] - SNIPPET_CUT * max(0, u[k] - base)
-    return u
 
 
 def token_cost(u):
@@ -118,7 +105,7 @@ M = {}
 for a in ARMS:
     g = [fc[(i, a)] for i in ids]
     r = [answers[a][i] for i in ids]
-    usage = [billed_usage(a, x["usage"]) for x in r]
+    usage = [x["usage"] for x in r]
     fees = [x["searches"] * PRICE[a] / 1000 for x in r]
     toks = [token_cost(u) for u in usage]
     total = [f + t for f, t in zip(fees, toks)]
@@ -426,8 +413,6 @@ Score differences between arms, per query:
 {COST}
 
 {SCALE}
-
-Linkup cost reflects the snippet compressor (30% fewer retrieved tokens), releasing the week of October 19, 2026.
 
 Search fees are Brave at its $5.00 list price (the Search plan covers both endpoints) and Linkup at the $4.00 per 1,000 calls offered to Langdock (20% off list); the rest of the cost comes from how much text Claude reads and writes. Prices: Sonnet 5.5 ${PRICE['sonnet_input']:.2f} / ${PRICE['sonnet_output']:.2f} per million input / output tokens (cache reads ${PRICE['sonnet_cache_read']:.2f}, cache writes ${PRICE['sonnet_cache_write']:.2f}). Any volume discount Brave offers Langdock is not included.
 
