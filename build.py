@@ -30,8 +30,8 @@ PRICE = {
     "sonnet_input": 2.00, "sonnet_output": 10.00, "sonnet_cache_read": 0.20, "sonnet_cache_write": 2.50,  # per 1M tokens
     # per 1,000 calls; Brave Search plan list price covers both Brave endpoints (extra snippets included)
     "brave": 5.00, "brave_llm": 5.00,
-    # Linkup searchResults (all three Linkup arms): price offered to Langdock (20% off the $5.00 list price)
-    "linkup": 4.00, "linkup_std": 4.00, "linkup_exp": 4.00,
+    # Linkup searchResults (all three Linkup arms), list price
+    "linkup": 5.00, "linkup_std": 5.00, "linkup_exp": 5.00,
 }
 VOLS = [1_000_000, 5_000_000, 10_000_000]  # Langdock's expected monthly range
 
@@ -307,7 +307,7 @@ def row(name, f):
 HEAD = ["Metric"] + [LABEL[a] for a in ARMS]
 best = lambda key, hi=True: (max if hi else min)(ARMS, key=lambda a: M[a][key])
 
-LINKUP_PRICE = "$4.00 (offered to Langdock; list $5.00)"
+LINKUP_PRICE = "$5.00 (list)"
 SETUP = table(["", *[LABEL[a] for a in ARMS]], [
     ["Model", *["`claude-sonnet-5-5`"] * len(ARMS)],
     ["Endpoint", "`/res/v1/web/search`", "`/res/v1/llm/context`", "`/v1/search`, `depth=fast`", "`/v1/search`, `depth=standard`",
@@ -414,7 +414,7 @@ Score differences between arms, per query:
 
 {SCALE}
 
-Search fees are Brave at its $5.00 list price (the Search plan covers both endpoints) and Linkup at the $4.00 per 1,000 calls offered to Langdock (20% off list); the rest of the cost comes from how much text Claude reads and writes. Prices: Sonnet 5.5 ${PRICE['sonnet_input']:.2f} / ${PRICE['sonnet_output']:.2f} per million input / output tokens (cache reads ${PRICE['sonnet_cache_read']:.2f}, cache writes ${PRICE['sonnet_cache_write']:.2f}). Any volume discount Brave offers Langdock is not included.
+Search fees are at list price: $5.00 per 1,000 calls for both Brave (the Search plan covers both endpoints) and Linkup, so cost differences come from how many searches Claude makes and how much text it reads and writes. Prices: Sonnet 5.5 ${PRICE['sonnet_input']:.2f} / ${PRICE['sonnet_output']:.2f} per million input / output tokens (cache reads ${PRICE['sonnet_cache_read']:.2f}, cache writes ${PRICE['sonnet_cache_write']:.2f}). Volume discounts on either side are not included.
 
 ## Latency
 

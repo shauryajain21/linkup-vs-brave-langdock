@@ -14,8 +14,8 @@ Claude Sonnet 5.5 answered 100 of Langdock's search queries five times, each tim
 | Blind A/B win rate (ties count half) | 36% | 77% | 43% | 42% | 52% |
 | Fact-check score (0–100) | 79.4 | 86.8 | 81.5 | 80.9 | 82.8 |
 | Fully correct (fact-check) | 26 | 39 | 30 | 33 | 30 |
-| Cost per query | $0.0682 | $0.0997 | $0.0844 | $0.0866 | $0.0827 |
-| Cost per correct answer | $0.2622 | $0.2557 | $0.2813 | $0.2624 | $0.2756 |
+| Cost per query | $0.0682 | $0.0997 | $0.0865 | $0.0888 | $0.0846 |
+| Cost per correct answer | $0.2622 | $0.2557 | $0.2883 | $0.2690 | $0.2821 |
 | Median latency | 13.2s | 16.0s | 14.8s | 18.1s | 15.8s |
 
 ## Setup
@@ -26,7 +26,7 @@ Claude Sonnet 5.5 answered 100 of Langdock's search queries five times, each tim
 | Endpoint | `/res/v1/web/search` | `/res/v1/llm/context` | `/v1/search`, `depth=fast` | `/v1/search`, `depth=standard` | `/v1/search`, `depth=fast`, experimental API key |
 | Settings | `count=10`, `extra_snippets=true` | `count=10`; default 8,192-token budget and relevance threshold | `searchResults`, `maxResults=10` | `searchResults`, `maxResults=10` | `searchResults`, `maxResults=10` |
 | What Claude sees per result | title, URL, date, description, up to 5 extra snippets | title, URL, date, extracted page chunks | title, URL, content | title, URL, content | title, URL, content |
-| Search price (per 1,000) | $5.00 (list) | $5.00 (list) | $4.00 (offered to Langdock; list $5.00) | $4.00 (offered to Langdock; list $5.00) | $4.00 (offered to Langdock; list $5.00) |
+| Search price (per 1,000) | $5.00 (list) | $5.00 (list) | $5.00 (list) | $5.00 (list) | $5.00 (list) |
 | Search cap | 10 per query | 10 per query | 10 per query | 10 per query | 10 per query |
 
 Claude decides what to search for and how often. Each tool description asks for the query style its provider is built for: keyword queries for Brave, natural-language retrieval instructions for Linkup. Neither provider gets a location hint: Brave runs without `country` or `search_lang`, and Linkup has no location setting. On Brave's LLM Context endpoint, `maximum_number_of_urls=10` did not limit the response in our runs: it returned 27.9 pages per search on average, and only the token budget changed how much came back. Brave's docs say the snippet limits give way to the token budget, but don't say this for the URL limit.
@@ -93,9 +93,9 @@ Score differences between arms, per query:
 
 | Per query | Brave Web Search | Brave LLM Context | Linkup fast | Linkup standard | Linkup fast (experimental) |
 |---|---|---|---|---|---|
-| Total cost | $0.0682 | $0.0997 | $0.0844 | $0.0866 | $0.0827 |
-| Cost per correct answer | $0.2622 | $0.2557 | $0.2813 | $0.2624 | $0.2756 |
-| Search fees | $0.0112 | $0.0098 | $0.0083 | $0.0086 | $0.0078 |
+| Total cost | $0.0682 | $0.0997 | $0.0865 | $0.0888 | $0.0846 |
+| Cost per correct answer | $0.2622 | $0.2557 | $0.2883 | $0.2690 | $0.2821 |
+| Search fees | $0.0112 | $0.0098 | $0.0104 | $0.0108 | $0.0097 |
 | Model tokens | $0.0570 | $0.0900 | $0.0761 | $0.0780 | $0.0749 |
 | Searches | 2.23 | 1.95 | 2.08 | 2.16 | 1.94 |
 | Input tokens (incl. cache) | 18,488 | 29,762 | 28,439 | 31,650 | 26,181 |
@@ -103,11 +103,11 @@ Score differences between arms, per query:
 
 | Queries per month | Brave Web Search | Brave LLM Context | Linkup fast | Linkup standard | Linkup fast (experimental) |
 |---|---|---|---|---|---|
-| 1,000,000 | $68,183 | $99,740 | $84,400 | $86,597 | $82,689 |
-| 5,000,000 | $340,916 | $498,698 | $421,998 | $432,985 | $413,443 |
-| 10,000,000 | $681,833 | $997,395 | $843,997 | $865,970 | $826,886 |
+| 1,000,000 | $68,183 | $99,740 | $86,480 | $88,757 | $84,629 |
+| 5,000,000 | $340,916 | $498,698 | $432,398 | $443,785 | $423,143 |
+| 10,000,000 | $681,833 | $997,395 | $864,797 | $887,570 | $846,286 |
 
-Search fees are Brave at its $5.00 list price (the Search plan covers both endpoints) and Linkup at the $4.00 per 1,000 calls offered to Langdock (20% off list); the rest of the cost comes from how much text Claude reads and writes. Prices: Sonnet 5.5 $2.00 / $10.00 per million input / output tokens (cache reads $0.20, cache writes $2.50). Any volume discount Brave offers Langdock is not included.
+Search fees are at list price: $5.00 per 1,000 calls for both Brave (the Search plan covers both endpoints) and Linkup, so cost differences come from how many searches Claude makes and how much text it reads and writes. Prices: Sonnet 5.5 $2.00 / $10.00 per million input / output tokens (cache reads $0.20, cache writes $2.50). Volume discounts on either side are not included.
 
 ## Latency
 
