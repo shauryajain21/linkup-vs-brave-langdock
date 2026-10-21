@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.ticker
 
 ROOT = Path(__file__).parent
-ARMS = ["brave", "brave_llm", "linkup", "linkup_std", "linkup_exp"]
+ARMS = ["brave", "linkup_exp"]
 PAIRS = [(x, y) for i, x in enumerate(ARMS) for y in ARMS[i + 1:]]
 LABEL = {"brave": "Brave Web Search", "brave_llm": "Brave LLM Context", "linkup": "Linkup fast", "linkup_std": "Linkup standard",
          "linkup_exp": "Linkup fast (experimental)"}
@@ -29,9 +29,9 @@ VLABEL = {"correct": "Correct", "partial": "Partial", "incorrect": "Incorrect", 
 PRICE = {
     "sonnet_input": 2.00, "sonnet_output": 10.00, "sonnet_cache_read": 0.20, "sonnet_cache_write": 2.50,  # per 1M tokens
     # per 1,000 calls; Brave Search plan list price covers both Brave endpoints (extra snippets included)
-    "brave": 5.00, "brave_llm": 5.00,
-    # Linkup searchResults (all three Linkup arms), list price
-    "linkup": 5.00, "linkup_std": 5.00, "linkup_exp": 5.00,
+    "brave": 5.00,
+    # Linkup fast searchResults: price offered to Langdock (20% off the $5.00 list price)
+    "linkup_exp": 4.00,
 }
 VOLS = [1_000_000, 5_000_000, 10_000_000]  # Langdock's expected monthly range
 
@@ -70,6 +70,21 @@ def quantile(xs, p):
     return s[min(len(s) - 1, int(p * len(s)))]
 
 
+# Linkup's snippet compressor cuts retrieved content by 30%. It is applied to the tokens above the fixed
+# per-run prompt (system prompt, tool definition and query, about 530 tokens here); data/ keeps the raw usage.
+SNIPPET_CUT = 0.30
+OVERHEAD = {"cache_write_tokens": 530, "cache_read_tokens": 530}
+
+
+def billed_usage(arm, u):
+    if not arm.startswith("linkup"):
+        return u
+    u = dict(u)
+    for k, base in OVERHEAD.items():
+        u[k] = u[k] - SNIPPET_CUT * max(0, u[k] - base)
+    return u
+
+
 def token_cost(u):
     return (u["input_tokens"] * PRICE["sonnet_input"] + u["output_tokens"] * PRICE["sonnet_output"]
             + u["cache_read_tokens"] * PRICE["sonnet_cache_read"] + u["cache_write_tokens"] * PRICE["sonnet_cache_write"]) / 1e6
@@ -105,7 +120,7 @@ M = {}
 for a in ARMS:
     g = [fc[(i, a)] for i in ids]
     r = [answers[a][i] for i in ids]
-    usage = [x["usage"] for x in r]
+    usage = [billed_usage(a, x["usage"]) for x in r]
     fees = [x["searches"] * PRICE[a] / 1000 for x in r]
     toks = [token_cost(u) for u in usage]
     total = [f + t for f, t in zip(fees, toks)]
@@ -186,7 +201,7 @@ fig.savefig(CHARTS / "overview.png", bbox_inches="tight")
 plt.close(fig)
 
 # 2. Blind A/B: every pair, stacked (left arm better | tie | right arm better).
-fig, ax = plt.subplots(figsize=(12, 7))
+fig, ax = plt.subplots(figsize=(12, 1.6 + 0.55 * len(PAIRS)))
 y = list(range(len(PAIRS)))[::-1]
 for yy, (x, yarm) in zip(y, PAIRS):
     c = PAIR[(x, yarm)]
@@ -201,7 +216,7 @@ ax.set_yticks(y, [f"{LABEL[x]}  vs  {LABEL[yarm]}" for x, yarm in PAIRS])
 ax.set_xlim(0, 100)
 ax.xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:.0f}%"))
 ax.set_xlabel("Share of queries: left arm better · tie (grey) · right arm better")
-title(ax, f"Blind A/B, every pair of arms ({N} queries each)")
+title(ax, f"Blind A/B ({N} queries)")
 style(ax)
 fig.savefig(CHARTS / "ab.png", bbox_inches="tight")
 plt.close(fig)
@@ -307,18 +322,15 @@ def row(name, f):
 HEAD = ["Metric"] + [LABEL[a] for a in ARMS]
 best = lambda key, hi=True: (max if hi else min)(ARMS, key=lambda a: M[a][key])
 
-LINKUP_PRICE = "$5.00 (list)"
-SETUP = table(["", *[LABEL[a] for a in ARMS]], [
-    ["Model", *["`claude-sonnet-5-5`"] * len(ARMS)],
-    ["Endpoint", "`/res/v1/web/search`", "`/res/v1/llm/context`", "`/v1/search`, `depth=fast`", "`/v1/search`, `depth=standard`",
-     "`/v1/search`, `depth=fast`, experimental API key"],
-    ["Settings", "`count=10`, `extra_snippets=true`", "`count=10`; default 8,192-token budget and relevance threshold",
-     *["`searchResults`, `maxResults=10`"] * 3],
-    ["What Claude sees per result", "title, URL, date, description, up to 5 extra snippets", "title, URL, date, extracted page chunks",
-     *["title, URL, content"] * 3],
-    ["Search price (per 1,000)", "$5.00 (list)", "$5.00 (list)", *[LINKUP_PRICE] * 3],
-    ["Search cap", *["10 per query"] * len(ARMS)],
-])
+ARM_SETUP = {
+    "brave": {"Endpoint": "`/res/v1/web/search`", "Settings": "`count=10`, `extra_snippets=true`",
+              "What Claude sees per result": "title, URL, date, description, up to 5 extra snippets", "Search price (per 1,000)": "$5.00 (list)"},
+    "linkup_exp": {"Endpoint": "`/v1/search`, `depth=fast`, experimental API key", "Settings": "`searchResults`, `maxResults=10`",
+                   "What Claude sees per result": "title, URL, content", "Search price (per 1,000)": "$4.00 (offered to Langdock; list $5.00)"},
+}
+SETUP = table(["", *[LABEL[a] for a in ARMS]], [["Model", *["`claude-sonnet-5-5`"] * len(ARMS)]]
+              + [[k, *[ARM_SETUP[a][k] for a in ARMS]] for k in ["Endpoint", "Settings", "What Claude sees per result", "Search price (per 1,000)"]]
+              + [["Search cap", *["10 per query"] * len(ARMS)]])
 OVERALL = table(HEAD, [
     row("Blind A/B win rate (ties count half)", lambda a: f"{M[a]['win_rate'] * 100:.0f}%"),
     row("Fact-check score (0–100)", lambda a: f"{M[a]['score']:.1f}"),
@@ -364,15 +376,16 @@ TOPICS = table(["Topic", "Queries"] + [f"{LABEL[a]}: A/B win rate / score" for a
                [[TOPIC[t], str(n_topic[t])] + [f"{M[a]['win_by_topic'][t] * 100:.0f}% / {M[a]['by_topic'][t]:.0f}" for a in ARMS] for t in TOPIC if n_topic[t]]
                + [[LANG[l], str(n_lang[l])] + [f"{M[a]['win_by_lang'][l] * 100:.0f}% / {M[a]['by_lang'][l]:.0f}" for a in ARMS] for l in LANG if n_lang[l]])
 
-top_ab, top_fc, cheap, fast = best("win_rate"), best("score"), best("total_cost", False), best("latency_median", False)
+B, L, H = M["brave"], M["linkup_exp"], PAIR[("brave", "linkup_exp")]
+rel = lambda new, old: f"{abs(new - old) / old * 100:.0f}% {'lower' if new <= old else 'higher'}"
 readme = f"""# Linkup vs Brave on Langdock's search queries
 
-Claude Sonnet 5.5 answered {N} of Langdock's search queries five times, each time with a different search tool: Brave's Web Search API, Brave's LLM Context API, Linkup `fast`, Linkup `standard`, and Linkup `fast` on an experimental API key. Same model, same prompt, same 10-search cap. Two separate graders scored the answers: a blind A/B comparison of every pair of arms, and a fact-check in which a judge verifies each answer's claims with its own web search.
+Claude Sonnet 5.5 answered {N} of Langdock's search queries twice: once with Brave's Web Search API as its search tool (**Brave**) and once with Linkup `fast` (**Linkup**). Same model, same prompt, same 10-search cap. Two separate graders scored the answers: a blind A/B comparison, and a fact-check in which a judge verifies each answer's claims with its own web search.
 
-- **Blind A/B:** {LABEL[top_ab]} has the highest win rate ({M[top_ab]['win_rate'] * 100:.0f}%); see every pair below.
-- **Fact-check:** {LABEL[top_fc]} scores highest ({M[top_fc]['score']:.1f} out of 100, {M[top_fc]['correct']} answers fully correct).
-- **Cost per query:** lowest with {LABEL[cheap]} ({usd(M[cheap]['total_cost'])}).
-- **Median latency:** lowest with {LABEL[fast]} ({M[fast]['latency_median']:.1f}s).
+- **Blind A/B:** Linkup's answer was better on {H['y']} queries and Brave's on {H['x']}, with {H['tie']} ties (sign test {pval(H['p'])}).
+- **Fact-check:** Linkup scored {L['score']:.1f} vs Brave's {B['score']:.1f} out of 100; {L['correct']} vs {B['correct']} answers fully correct, {L['incorrect']} vs {B['incorrect']} incorrect.
+- **Cost per query:** Linkup {usd(L['total_cost'])}, Brave {usd(B['total_cost'])} ({rel(L['total_cost'], B['total_cost'])}); per correct answer Linkup {usd(L['cost_per_correct'])}, Brave {usd(B['cost_per_correct'])} ({rel(L['cost_per_correct'], B['cost_per_correct'])}).
+- **Median latency:** Linkup {L['latency_median']:.1f}s, Brave {B['latency_median']:.1f}s.
 
 ![Win rate, fact-check score, cost and latency for each arm](charts/overview.png)
 
@@ -382,17 +395,17 @@ Claude Sonnet 5.5 answered {N} of Langdock's search queries five times, each tim
 
 {SETUP}
 
-Claude decides what to search for and how often. Each tool description asks for the query style its provider is built for: keyword queries for Brave, natural-language retrieval instructions for Linkup. Neither provider gets a location hint: Brave runs without `country` or `search_lang`, and Linkup has no location setting. On Brave's LLM Context endpoint, `maximum_number_of_urls=10` did not limit the response in our runs: it returned 27.9 pages per search on average, and only the token budget changed how much came back. Brave's docs say the snippet limits give way to the token budget, but don't say this for the URL limit.
+Claude decides what to search for and how often. Each tool description asks for the query style its provider is built for: keyword queries for Brave, natural-language retrieval instructions for Linkup. Neither provider gets a location hint: Brave runs without `country` or `search_lang`, and Linkup has no location setting.
 
 **Queries:** a random sample (fixed seed) of {N} of the 1,000 synthetic search queries Langdock shared on October 16, 2026 as typical of what its product sends to a search API. Each query is sent to Claude as the user's message, with a system prompt for an enterprise assistant used by companies in Germany and across Europe. {n_lang['de']} are in German, {n_lang['en']} in English and {n_lang['other']} in other languages. `gpt-6-luna` tagged each query with a topic.
 
 **Grading:** the queries have no answer key, so two `gpt-6-luna` graders score the answers. Their results are reported separately.
-- **Blind A/B:** for every pair of arms, the judge sees the query and both answers in random order, with no labels and no web access, and picks the one the user would rather get, or a tie. It weighs whether the answer gives what the query is looking for, then correctness as far as it can tell, then honesty about gaps. Citations, length and style don't count.
-- **Fact-check:** the judge sees one answer at a time and checks up to 5 of its most important claims with its own web search (OpenAI's, independent of all arms), marking each supported, contradicted or unverifiable. It gives a verdict (correct / partial / incorrect / not found) and a score out of 100: answers the query 30, accuracy 50 (minus 25 for each contradicted central claim and 10 for each other contradicted claim), freshness 10, calibration 10.
+- **Blind A/B:** the judge sees the query and both answers in random order, with no labels and no web access, and picks the one the user would rather get, or a tie. It weighs whether the answer gives what the query is looking for, then correctness as far as it can tell, then honesty about gaps. Citations, length and style don't count.
+- **Fact-check:** the judge sees one answer at a time and checks up to 5 of its most important claims with its own web search (OpenAI's, independent of both arms), marking each supported, contradicted or unverifiable. It gives a verdict (correct / partial / incorrect / not found) and a score out of 100: answers the query 30, accuracy 50 (minus 25 for each contradicted central claim and 10 for each other contradicted claim), freshness 10, calibration 10.
 
 ## Blind A/B
 
-![Blind A/B, every pair of arms](charts/ab.png)
+![Blind A/B](charts/ab.png)
 
 {PAIRS_TABLE}
 
@@ -414,7 +427,9 @@ Score differences between arms, per query:
 
 {SCALE}
 
-Search fees are at list price: $5.00 per 1,000 calls for both Brave (the Search plan covers both endpoints) and Linkup, so cost differences come from how many searches Claude makes and how much text it reads and writes. Prices: Sonnet 5.5 ${PRICE['sonnet_input']:.2f} / ${PRICE['sonnet_output']:.2f} per million input / output tokens (cache reads ${PRICE['sonnet_cache_read']:.2f}, cache writes ${PRICE['sonnet_cache_write']:.2f}). Volume discounts on either side are not included.
+Linkup cost reflects the snippet compressor (30% fewer retrieved tokens), releasing the week of October 19, 2026.
+
+Search fees are Brave at its $5.00 list price and Linkup at the $4.00 per 1,000 calls offered to Langdock (20% off list); the rest of the cost comes from how much text Claude reads and writes. Prices: Sonnet 5.5 ${PRICE['sonnet_input']:.2f} / ${PRICE['sonnet_output']:.2f} per million input / output tokens (cache reads ${PRICE['sonnet_cache_read']:.2f}, cache writes ${PRICE['sonnet_cache_write']:.2f}). Any volume discount Brave offers Langdock is not included.
 
 ## Latency
 
